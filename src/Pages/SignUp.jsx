@@ -48,6 +48,7 @@ const SignUp = () => {
       !formData.department ||
       !formData.gender ||
       !formData.id ||
+      !formData.idFile ||
       !formData.email ||
       !formData.password
     ) {
@@ -59,28 +60,59 @@ const SignUp = () => {
 
     try {
       const formDataWithFile = new FormData()
-      formDataWithFile.append("firstName", formData.firstName)
-      formDataWithFile.append("fatherName", formData.fatherName)
-      formDataWithFile.append("grandfatherName", formData.grandfatherName)
-      formDataWithFile.append("phoneNumber", formData.phoneNumber)
-      formDataWithFile.append("department", formData.department)
+      // Map client-side names to backend expected field names
+      formDataWithFile.append("first_name", formData.firstName)
+      formDataWithFile.append("father_name", formData.fatherName)
+      formDataWithFile.append("grand_father_name", formData.grandfatherName)
+      formDataWithFile.append("phone_number", formData.phoneNumber)
+      formDataWithFile.append("department_name", formData.department)
       formDataWithFile.append("gender", formData.gender)
-      formDataWithFile.append("id", formData.id)
+      formDataWithFile.append("id_number", formData.id)
+      // backend expects the uploaded file under `id_card` as binary
       if (formData.idFile) {
-        formDataWithFile.append("idFile", formData.idFile)
+        formDataWithFile.append("id_card", formData.idFile)
       }
       formDataWithFile.append("email", formData.email)
       formDataWithFile.append("password", formData.password)
-
-      const response = await fetch("https://gibigubae-website-backend.onrender.com/api/auth/signup", {
+      const apiUrl = import.meta.env.VITE_API_URL ;
+      console.debug("Signing up to API URL:", apiUrl)
+      const response = await fetch(`${apiUrl}/signup`, {
         method: "POST",
         body: formDataWithFile,
       })
+      console.log("Signup response:", response);
 
-      const data = await response.json()
+      // Try to parse JSON only when the server returns JSON.
+      const contentType = response.headers.get("content-type") || ""
+      let data = null
+      if (contentType.includes("application/json")) {
+        try {
+          // sanitize API URL from env (trim and remove trailing slash)
+          const rawApiUrl = import.meta.env.VITE_API_URL || ""
+          const apiUrl = rawApiUrl.toString().trim().replace(/\/+$/g, "")
+          const signupUrl = `${apiUrl}/signup`
+          console.debug("POST signup url:", signupUrl)
+
+        } catch (err) {
+          console.error("Failed to parse JSON response", err)
+        }
+      } else {
+        // Non-JSON response (likely an HTML error page). Read text for debugging.
+        const text = await response.text()
+        console.error("Non-JSON response from signup endpoint:", text)
+        if (!response.ok) {
+          setError(
+            `Sign up failed: ${response.status} ${response.statusText} - ${text.slice(0,200)}`,
+          )
+          return
+        }
+      }
+
+      console.log("signup response status:", response.status, response.statusText, data)
 
       if (!response.ok) {
-        setError(data.message || "Sign up failed")
+        setError((data && data.message) || `Sign up failed (${response.status})`)
+        console.log("Sign up error response:", data)
         return
       }
 
